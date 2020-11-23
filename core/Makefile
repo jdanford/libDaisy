@@ -1,35 +1,34 @@
 # Core Makefile for Daisy
 
 CHIPSET ?= stm32h7x
-
-TARGET_BIN=$(TARGET).bin
-TARGET_ELF=$(TARGET).elf
 FLASH_ADDRESS ?= 0x08000000
+VENDOR_ID ?= 0483
+PRODUCT_ID ?= df11
 
 # If you have the arm-none-eabi- toolchain located in a particular place, but not installed for the entire system, add the path here:
-# GCC_PATH=
+# GCC_PATH =
 
 ######################################
 # OpenOCD stuff
 # TODO: add config.mk file for settings like programmer, etc.
 ######################################
-OCD=openocd
+
+OCD = openocd
 OCD_DIR ?= /usr/local/share/openocd/scripts
 PGM_DEVICE ?= interface/stlink.cfg
 OCDFLAGS = -f $(PGM_DEVICE) -f target/$(CHIPSET).cfg
 
-GDB_FLAGS=
+GDB_FLAGS =
 
 ######################################
 # building variables
 ######################################
+
 # debug build?
-#DEBUG = 1
+# DEBUG = 1
+
 # optimization
-#OPT = -Og
 OPT ?= -O2
-
-
 
 ######################################
 # paths
@@ -38,54 +37,48 @@ OPT ?= -O2
 # Build path
 BUILD_DIR = build
 
-LIBDAISY_DIR ?= \
-./libdaisy
+LIBDAISY_DIR ?= ./libdaisy
 
-SYSTEM_FILES_DIR ?= \
-./
+SYSTEM_FILES_DIR ?= ./
 
 ######################################
 # source
 ######################################
 
-CPP_SOURCES ?= 
+CPP_SOURCES ?=
 
 C_SOURCES += \
 $(LIBDAISY_DIR)/src/system_stm32h7xx.c \
 $(SYSTEM_FILES_DIR)/startup_stm32h750xx.c
 
-#$(SYSTEM_FILES_DIR)/system_stm32h7xx.c
-
-#ASM_SOURCES += \
-#$(SYSTEM_FILES_DIR)/startup_stm32h750xx.s
-
 #######################################
 # binaries
 #######################################
+
 PREFIX = arm-none-eabi-
+
 # The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
-# either it can be added to the PATH environment variable.
+# or it can be added to the PATH environment variable.
 ifdef GCC_PATH
-CC = $(GCC_PATH)/$(PREFIX)gcc
-AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
-CXX = $(GCC_PATH)/$(PREFIX)g++ 
-GDB = $(GCC_PATH)/$(PREFIX)gdb
-CP = $(GCC_PATH)/$(PREFIX)objcopy
-SZ = $(GCC_PATH)/$(PREFIX)size
+GCC_PREFIX = $(GCC_PATH)/$(PREFIX)
 else
-CC = $(PREFIX)gcc
-CXX = $(PREFIX)g++ 
-GDB = $(PREFIX)gdb
-AS = $(PREFIX)gcc -x assembler-with-cpp
-CP = $(PREFIX)objcopy
-SZ = $(PREFIX)size
+GCC_PREFIX = $(PREFIX)
 endif
+
+CC = $(GCC_PREFIX)gcc
+CXX = $(GCC_PREFIX)g++
+GDB = $(GCC_PREFIX)gdb
+AS = $(GCC_PREFIX)gcc -x assembler-with-cpp
+CP = $(GCC_PREFIX)objcopy
+SZ = $(GCC_PREFIX)size
+
 HEX = $(CP) -O ihex
 BIN = $(CP) -O binary -S
 
 #######################################
 # CFLAGS
 #######################################
+
 # cpu
 CPU = -mcpu=cortex-m7
 
@@ -104,19 +97,17 @@ AS_DEFS =
 
 # C defines
 C_DEFS ?=
-C_DEFS +=  \
+C_DEFS += \
 -DUSE_HAL_DRIVER \
 -DSTM32H750xx \
 -DUSE_HAL_DRIVER \
 -DHSE_VALUE=16000000 \
 -DSTM32H750xx
 
-
 # AS includes
 AS_INCLUDES =
 
-C_INCLUDES ?= 
-
+C_INCLUDES ?=
 C_INCLUDES += \
 -I$(LIBDAISY_DIR) \
 -I$(LIBDAISY_DIR)/src/ \
@@ -124,8 +115,7 @@ C_INCLUDES += \
 -I$(LIBDAISY_DIR)/Drivers/CMSIS/Device/ST/STM32H7xx/Include \
 -I$(LIBDAISY_DIR)/Drivers/STM32H7xx_HAL_Driver/Inc/ \
 -I$(SYSTEM_FILES_DIR)/ \
--I$(DAISYSP_DIR) \
-
+-I$(DAISYSP_DIR)
 
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
@@ -133,7 +123,6 @@ ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffuncti
 CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wno-missing-attributes -fasm -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
-#CFLAGS += -g -gdwarf-2
 CFLAGS += -g -ggdb
 endif
 
@@ -148,7 +137,7 @@ CPPFLAGS += \
 -finline-functions-called-once \
 -fshort-enums \
 -fno-move-loop-invariants \
--fno-unwind-tables 
+-fno-unwind-tables
 
 C_STANDARD = -std=gnu11
 CPP_STANDARD ?= -std=gnu++14
@@ -156,18 +145,17 @@ CPP_STANDARD ?= -std=gnu++14
 #######################################
 # LDFLAGS
 #######################################
+
 # link script
 LDSCRIPT = $(SYSTEM_FILES_DIR)/STM32H750IB_flash.lds
 
 # libraries
-
 LIBS += -ldaisy -lc -lm -lnosys
-LIBDIR = -L$(LIBDAISY_DIR)/build 
-#LIBDIR = -L./VisualGDB/Release
+LIBDIR = -L$(LIBDAISY_DIR)/$(BUILD_DIR)
 
 ifdef DAISYSP_DIR
 LIBS += -ldaisysp
-LIBDIR += -L $(DAISYSP_DIR)/build
+LIBDIR += -L$(DAISYSP_DIR)/$(BUILD_DIR)
 endif
 
 LDFLAGS ?=
@@ -179,25 +167,29 @@ all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET
 #######################################
 # build the application
 #######################################
-# list of objects
-OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
+
+# list of C source objects
+OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
-OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(CPP_SOURCES:.cpp=.o)))
+
+# list of C++ source objects
+OBJECTS += $(addprefix $(BUILD_DIR)/, $(notdir $(CPP_SOURCES:.cpp=.o)))
 vpath %.cpp $(sort $(dir $(CPP_SOURCES)))
+
 # list of ASM program objects
-OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
+OBJECTS += $(addprefix $(BUILD_DIR)/, $(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
 
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) $(C_STANDARD) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
 
-$(BUILD_DIR)/%.o: %.cpp Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.cpp | $(BUILD_DIR)
 	$(CXX) -c $(CPPFLAGS) $(CPP_STANDARD) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.cpp=.lst)) $< -o $@
 
-$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)
 	$(AS) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) | $(BUILD_DIR)
 	$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
 	$(SZ) $@
 
@@ -213,6 +205,7 @@ $(BUILD_DIR):
 #######################################
 # clean up
 #######################################
+
 clean:
 	-rm -fR $(BUILD_DIR)
 
@@ -223,7 +216,7 @@ clean:
 openocd:
 	$(OCD) -s $(OCD_DIR) $(OCDFLAGS)
 
-debug:
+debug: $(BUILD_DIR)/$(TARGET).elf
 	@if ! nc -z localhost 3333; then \
         echo "\n\t[Error] OpenOCD is not running! Start it with: 'make openocd'\n"; exit 1; \
     else \
@@ -232,26 +225,26 @@ debug:
             -ex "monitor reset halt" \
             -ex "load" \
             -ex "monitor reset init" \
-            $(GDBFLAGS) build/$(TARGET).elf; \
+            $(GDBFLAGS) $(BUILD_DIR)/$(TARGET).elf; \
     fi
 
-debug_client:
-	ddd --eval-command="target remote localhost:3333" --debugger $(GDB) $(TARGET_ELF)
+debug_client: $(BUILD_DIR)/$(TARGET).elf
+	ddd --eval-command="target remote localhost:3333" --debugger $(GDB) $(TARGET).elf
 
-program:
-	$(OCD) -s $(OCD_DIR) $(OCDFLAGS) \
-		-c "program ./build/$(TARGET).elf verify reset exit"
+program: $(BUILD_DIR)/$(TARGET).elf
+	$(OCD) -s $(OCD_DIR) $(OCDFLAGS) -c "program ./$(BUILD_DIR)/$(TARGET).elf verify reset exit"
 
 #######################################
 # dfu-util
 #######################################
 
-program-dfu:
-	dfu-util -a 0 -s $(FLASH_ADDRESS):leave -D $(BUILD_DIR)/$(TARGET_BIN) -d 0483:df11
+program-dfu: $(BUILD_DIR)/$(TARGET).bin
+	dfu-util -a 0 -s $(FLASH_ADDRESS):leave -D $(BUILD_DIR)/$(TARGET).bin -d $(VENDOR_ID):$(PRODUCT_ID)
 
 #######################################
 # dependencies
 #######################################
+
 -include $(wildcard $(BUILD_DIR)/*.d)
 
 # *** EOF ***
