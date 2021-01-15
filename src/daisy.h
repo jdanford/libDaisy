@@ -30,6 +30,7 @@
 #include "hid/gatein.h"
 #include "hid/parameter.h"
 #include "hid/usb.h"
+#include "hid/logger.h"
 #include "per/sai.h"
 #include "per/sdmmc.h"
 #include "per/spi.h"
@@ -38,6 +39,7 @@
 #include "hid/led.h"
 #include "hid/rgb_led.h"
 #include "dev/sr_595.h"
+#include "dev/codec_pcm3060.h"
 #include "util/scopedirqblocker.h"
 #endif
 #endif
